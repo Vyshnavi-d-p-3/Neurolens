@@ -1,0 +1,19 @@
+model:
+  name: resnet18
+  num_classes: 10
+
+dataset:
+  name: cifar10
+  augmentation:
+    random_crop: 32
+    horizontal_flip: true
+
+training:
+  optimizer: sgd
+  lr: 0.1
+  momentum: 0.9
+  weight_decay: 0.0001
+  scheduler: cosine_annealing
+  epochs: 200
+  batch_size: 128
+  seed: 42

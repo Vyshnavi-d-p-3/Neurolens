@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+checkpoints/
+wandb/
+data/cifar-10-*
+data/ag_news/
+data/flickr8k/
+*.pt
+*.pth
+.idea/
+.vscode/
+.DS_Store
+*.ipynb_checkpoints/
