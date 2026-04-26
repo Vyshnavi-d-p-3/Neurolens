@@ -49,20 +49,14 @@ class PGD(Attack):
             x_adv = torch.clamp(x_adv, 0.0, 1.0)
 
         for _ in range(self.steps):
-            x_adv.requires_grad_(True)
+            x_adv = x_adv.detach().requires_grad_(True)
 
-            # Forward + backward
             logits = self.model(x_adv)
             loss = nn.CrossEntropyLoss()(logits, y)
             loss.backward()
 
             with torch.no_grad():
-                # Gradient ascent step
                 x_adv = x_adv + self.step_size * x_adv.grad.sign()
-
-                # Project back to ε-ball around original x
                 x_adv = self._clamp(x_adv, x)
-
-            x_adv = x_adv.detach()
 
         return x_adv

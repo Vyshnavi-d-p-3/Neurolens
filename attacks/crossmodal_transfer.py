@@ -68,12 +68,15 @@ class CrossModalTransfer(Attack):
         Minimizes similarity with correct caption, maximizes with incorrect.
         This is PGD-style optimization against the contrastive loss.
         """
+        correct_text_embeddings = correct_text_embeddings.detach()
+        incorrect_text_embeddings = incorrect_text_embeddings.detach()
+
         x_adv = images.clone().detach()
         x_adv += torch.zeros_like(x_adv).uniform_(-self.epsilon, self.epsilon)
         x_adv = torch.clamp(x_adv, 0.0, 1.0)
 
         for _ in range(self.steps):
-            x_adv.requires_grad_(True)
+            x_adv = x_adv.detach().requires_grad_(True)
 
             # Get image embeddings from CLIP-lite
             img_emb = self.model.encode_image(x_adv)
@@ -87,10 +90,9 @@ class CrossModalTransfer(Attack):
             loss.sum().backward()
 
             with torch.no_grad():
-                x_adv = x_adv - self.step_size * x_adv.grad.sign()  # gradient descent on loss
+                grad = x_adv.grad
+                x_adv = x_adv - self.step_size * grad.sign()
                 x_adv = self._clamp(x_adv, images)
-
-            x_adv = x_adv.detach()
 
         return x_adv
 
