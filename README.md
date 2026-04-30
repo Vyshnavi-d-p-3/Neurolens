@@ -87,22 +87,29 @@ neurolens/
 └── notebooks/
 ```
 
-## Reproducing Results
+## Quick Start (MVP)
 
 ```bash
 git clone https://github.com/Vyshnavi-d-p-3/neurolens.git
 cd neurolens
 pip install -r requirements.txt
 
-# Train models
-python -m models.resnet --config configs/models/resnet18_cifar10.yaml
-python -m models.transformer --config configs/models/transformer_agnews.yaml
+# Train + evaluate (fast mode ~2 min CPU)
+python run_mvp.py --quick
 
-# Run attacks
-python -m eval.attack_success_rate --config configs/attacks/pgd.yaml
+# Interactive demo
+streamlit run demo/app.py
+```
 
-# All experiments (requires GPU)
-bash experiments/run_all.sh
+## Reproducing Results
+
+```bash
+# Full MVP pipeline (longer training)
+python run_mvp.py
+
+# Individual eval scripts (after checkpoints exist)
+python -m eval.attack_success_rate
+python -m eval.transfer_matrix
 ```
 
 All experiments are tracked in [Weights & Biases](https://wandb.ai/) with pinned random seeds for full reproducibility.
@@ -129,8 +136,8 @@ All experiments are tracked in [Weights & Biases](https://wandb.ai/) with pinned
 - [x] FGSM attack implementation
 - [x] PGD-20 attack implementation
 - [x] Randomized smoothing defense
-- [ ] CLIP-lite dual encoder
-- [ ] Cross-modal transfer attack
+- [x] CLIP-lite dual encoder (MVP)
+- [x] Cross-modal transfer attack (MVP eval)
 - [ ] TextFooler implementation
 - [ ] Adversarial training defense
 - [ ] Full experiment sweep
