@@ -14,11 +14,12 @@ from pathlib import Path
 
 import torch
 
+from defenses.adversarial_training import AdversarialTrainer
 from eval.metrics import evaluate_asr_curve
 from eval.transfer_matrix import run_transfer_eval
 from models.dual_encoder import CLIPLite
 from models.resnet import ResNet18
-from utils.data import get_cifar10_loaders, get_device
+from utils.data import get_cifar10_loaders, get_device, set_seed
 from utils.training import train_clip_lite, train_resnet
 
 
@@ -34,7 +35,15 @@ def main():
     parser.add_argument("--train-samples", type=int, default=None)
     parser.add_argument("--eval-samples", type=int, default=None)
     parser.add_argument("--epsilon", type=float, default=0.1)
+    parser.add_argument(
+        "--defense",
+        action="store_true",
+        help="Train PGD-AT ResNet-18 and print Table 2 baseline vs. robust comparison",
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()
+
+    set_seed(args.seed)
 
     if args.quick:
         epochs = args.epochs or 3
@@ -66,6 +75,62 @@ def main():
     save_checkpoint(resnet, resnet_path)
     print(f"   Final test accuracy: {resnet_hist['test_acc'][-1]:.1%}")
     print(f"   Saved → {resnet_path}\n")
+
+    # --- Optional PGD adversarial training (Table 2) ---
+    if args.defense:
+        at_epochs = 2 if args.quick else 5
+        at_pgd_steps = 5 if args.quick else 7
+        eval_pgd_steps = 10 if args.quick else 20
+
+        print("=" * 50)
+        print("1b. PGD Adversarial Training (ResNet-18)")
+        print("=" * 50)
+        print(
+            "   Note: smoke-test numbers only — lightly trained models, "
+            "not publishable Table 2 results.\n"
+        )
+
+        resnet_at = ResNet18().to(device)
+        resnet_at.load_state_dict(resnet.state_dict())
+
+        at_trainer = AdversarialTrainer(
+            resnet_at,
+            epsilon=args.epsilon,
+            pgd_steps=at_pgd_steps,
+            device=device,
+        )
+        at_optimizer = torch.optim.SGD(
+            resnet_at.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4,
+        )
+        at_trainer.train(
+            train_loader,
+            at_optimizer,
+            epochs=at_epochs,
+            test_loader=test_loader,
+            verbose=True,
+        )
+        at_path = ckpt_dir / "resnet18_at_mvp.pt"
+        save_checkpoint(resnet_at, at_path)
+        print(f"   Saved → {at_path}\n")
+
+        baseline_eval = AdversarialTrainer(
+            resnet, epsilon=args.epsilon, device=device,
+        )
+        baseline_clean = baseline_eval.evaluate_clean(test_loader)
+        baseline_robust = baseline_eval.evaluate_robust(
+            test_loader, pgd_steps=eval_pgd_steps,
+        )
+        at_clean = at_trainer.evaluate_clean(test_loader)
+        at_robust = at_trainer.evaluate_robust(test_loader, pgd_steps=eval_pgd_steps)
+
+        print("=" * 50)
+        print("Table 2 — Defense comparison (PGD-20 robust eval)")
+        print("=" * 50)
+        print(f"   {'Model':<22} {'Clean':>8} {'PGD-robust':>12}")
+        print(f"   {'-' * 22} {'-' * 8} {'-' * 12}")
+        print(f"   {'Baseline ResNet-18':<22} {baseline_clean:>7.1%} {baseline_robust:>12.1%}")
+        print(f"   {'PGD-AT ResNet-18':<22} {at_clean:>7.1%} {at_robust:>12.1%}")
+        print()
 
     # --- Train CLIP-lite ---
     print("=" * 50)

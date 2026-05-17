@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import random
+
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
@@ -40,6 +43,15 @@ def get_cifar10_loaders(
         test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=False,
     )
     return train_loader, test_loader
+
+
+def set_seed(seed: int) -> None:
+    """Set random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 def get_device() -> torch.device:
